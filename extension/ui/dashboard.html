@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flip Tracker — Dashboard</title><link rel="stylesheet" href="ui.css"></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row"><h1>🪙 Flip Tracker</h1><span class="muted" id="status"></span><span class="spacer"></span>
+      <button id="btnCsv">Export CSV</button><button id="btnJson">Export JSON</button>
+      <button id="btnImport">Import JSON</button><input type="file" id="fileImport" accept="application/json,.json" hidden></div>
+    <div class="note" id="note"></div>
+    <div class="row" id="filters">
+      <label>From<input type="date" id="fFrom"></label>
+      <label>To<input type="date" id="fTo"></label>
+      <label>Currency<select id="fCur"><option value="ALL">All</option></select></label>
+      <label>&nbsp;<button id="fReset" class="link">Reset filters</button></label>
+    </div>
+  </header>
+  <div class="grid cards" id="cards"></div>
+  <div class="grid two">
+    <section class="panel"><h2>Profit / loss by currency</h2><div id="curTable"></div></section>
+    <section class="panel"><h2>Heads vs tails</h2><div id="splits"></div></section>
+  </div>
+  <section class="panel chart"><h2>Profit over time (cumulative, settled rounds)</h2><div id="charts"></div></section>
+  <section class="panel"><h2>Sessions</h2><div class="tablewrap" id="sessions"></div></section>
+  <section class="panel"><div class="row"><h2 style="margin:0">Recent flips</h2><span class="spacer"></span>
+    <label class="inline">Show <select id="limit"><option>50</option><option selected>200</option><option value="0">All</option></select></label></div>
+    <div class="tablewrap" id="flips" style="margin-top:8px"></div></section>
+  <div class="grid two">
+    <section class="panel"><h2>Add flip manually</h2>
+      <form id="manual" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+        <label>Time<input type="datetime-local" name="ts" step="1" required></label>
+        <label>Your pick<select name="pick"><option value="heads">Heads</option><option value="tails">Tails</option></select></label>
+        <label>Result<select name="result"><option value="heads">Heads</option><option value="tails">Tails</option></select></label>
+        <label>Bet amount<input type="number" name="amount" min="0" step="any" required></label>
+        <label>Currency<select name="currency"><option>SC</option><option>GC</option></select></label>
+        <label>Multiplier (opt.)<input type="number" name="multiplier" min="0" step="any" placeholder="1.96"></label>
+        <label>Payout (opt.)<input type="number" name="payout" min="0" step="any" placeholder="auto"></label>
+        <label>Round ID (opt.)<input type="text" name="betId" maxlength="60" placeholder="group multi-flip"></label>
+        <label>Flip # in round<input type="number" name="flipIndex" min="1" step="1" value="1"></label>
+        <label>&nbsp;<button class="primary" type="submit">Add flip</button></label>
+      </form>
+      <p class="muted" style="font-size:12px">Payout defaults to amount × multiplier for a win (multiplier defaults to 1.96 for a single winning flip), 0 for a loss.</p>
+    </section>
+    <section class="panel"><h2>Settings &amp; data</h2>
+      <div class="grid" style="gap:10px">
+        <label class="inline"><input type="checkbox" id="sDebug"> <span>Debug mode — save sanitized response <em>shapes</em> (keys only; values redacted except game fields)</span></label>
+        <div class="row"><span class="muted" id="debugCount"></span><button id="btnDebugExport">Export debug shapes</button><button id="btnDebugClear" class="link">Clear shapes</button></div>
+        <label class="inline"><input type="checkbox" id="sDom"> Experimental DOM fallback (result only, when network capture finds nothing)</label>
+        <label class="inline">New session after <input type="number" id="sGap" min="1" max="1440" style="width:80px"> minutes idle</label>
+        <label class="inline">Loss warning when tracker-session SC net reaches −<input type="number" id="sWarn" min="0.01" step="0.01" style="width:90px"> SC ($)</label>
+        <div class="row"><button class="danger" id="btnClear">Clear all flip data…</button></div>
+        <p class="muted" style="font-size:12px;margin:0">Read-only: Flip Tracker only observes your own Flip results on stake.us. It never places bets, clicks, or automates play, and it never reads cookies, tokens or headers. Data stays in this browser (storage.local).</p>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="../lib/browser-shim.js"></script><script src="../lib/stats.js"></script><script src="common.js"></script><script src="dashboard.js"></script>
+</body></html>

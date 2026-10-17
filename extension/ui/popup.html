@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Flip Tracker</title><link rel="stylesheet" href="ui.css"></head>
+<body class="popup">
+<div id="intro" class="intro-splash">Made by TDM</div>
+<div class="wrap hidden" id="main">
+  <div class="row" style="margin-bottom:8px"><h1>🪙 Flip Tracker</h1><span class="spacer"></span><button class="primary" id="open">Dashboard</button></div>
+  <div class="note" id="note" style="margin-bottom:10px"></div>
+  <div class="row" style="margin-bottom:10px">
+    <button id="tracker" class="tracker-btn"></button>
+    <span class="tracker-ind" id="trackerInd"></span>
+  </div>
+  <label class="inline" style="margin-bottom:10px"><input type="checkbox" id="overlayToggle"> <span>Show on-page overlay on stake.us</span></label>
+  <div class="grid cards" id="cards"></div>
+  <section class="panel" style="padding:10px 12px"><h2>Last flips</h2><div id="recent"></div></section>
+  <section class="panel codes-panel" style="padding:10px 12px"><h2>Recently posted codes</h2><div id="codes" data-ft="codes"></div></section>
+  <p class="muted" id="status" style="font-size:12px;margin:8px 0 0"></p>
+</div>
+<script src="../lib/browser-shim.js"></script><script src="../lib/stats.js"></script><script src="../lib/codes-ui.js"></script><script src="common.js"></script><script src="popup.js"></script>
+</body></html>

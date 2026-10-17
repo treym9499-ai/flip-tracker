@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Flip Tracker",
+  "version": "1.2.0",
+  "description": "Read-only tracker for your Stake.us Flip results: stats, charts and CSV/JSON export. Never places bets.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://t.me/s/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Flip Tracker",
+    "default_popup": "ui/popup.html",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png" }
+  },
+  "options_ui": { "page": "ui/dashboard.html", "open_in_tab": true },
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_scripts": [
+    {
+      "matches": ["https://stake.us/*", "https://*.stake.us/*"],
+      "js": ["lib/browser-shim.js", "lib/field-mappings.js", "lib/parser.js", "lib/stats.js", "lib/codes-ui.js", "content/content.js", "content/overlay.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["content/injected.js"], "matches": ["https://stake.us/*", "https://*.stake.us/*"] }
+  ],
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}
