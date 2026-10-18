@@ -20,7 +20,10 @@
     <section class="panel"><h2>Profit / loss by currency</h2><div id="curTable"></div></section>
     <section class="panel"><h2>Heads vs tails</h2><div id="splits"></div></section>
   </div>
-  <section class="panel chart"><h2>Profit over time (cumulative, settled rounds)</h2><div id="charts"></div></section>
+  <section class="panel"><h2>Last 25 flips (oldest → newest)</h2>
+    <div id="last25" class="seq" data-ft="last25"></div>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">A record of outcomes only. Each flip is an independent 50/50 (provably fair). Past results don’t predict future flips.</p></section>
+  <section class="panel chart"><h2>Profit over time (cumulative, per finished game)</h2><div id="charts"></div></section>
   <section class="panel"><h2>Sessions</h2><div class="tablewrap" id="sessions"></div></section>
   <section class="panel"><div class="row"><h2 style="margin:0">Recent flips</h2><span class="spacer"></span>
     <label class="inline">Show <select id="limit"><option>50</option><option selected>200</option><option value="0">All</option></select></label></div>
@@ -35,8 +38,8 @@
         <label>Currency<select name="currency"><option>SC</option><option>GC</option></select></label>
         <label>Multiplier (opt.)<input type="number" name="multiplier" min="0" step="any" placeholder="1.96"></label>
         <label>Payout (opt.)<input type="number" name="payout" min="0" step="any" placeholder="auto"></label>
-        <label>Round ID (opt.)<input type="text" name="betId" maxlength="60" placeholder="group multi-flip"></label>
-        <label>Flip # in round<input type="number" name="flipIndex" min="1" step="1" value="1"></label>
+        <label>Game ID (opt.)<input type="text" name="betId" maxlength="60" placeholder="group multi-flip"></label>
+        <label>Flip # in game<input type="number" name="flipIndex" min="1" step="1" value="1"></label>
         <label>&nbsp;<button class="primary" type="submit">Add flip</button></label>
       </form>
       <p class="muted" style="font-size:12px">Payout defaults to amount × multiplier for a win (multiplier defaults to 1.96 for a single winning flip), 0 for a loss.</p>
@@ -44,11 +47,12 @@
     <section class="panel"><h2>Settings &amp; data</h2>
       <div class="grid" style="gap:10px">
         <label class="inline"><input type="checkbox" id="sDebug"> <span>Debug mode — save sanitized response <em>shapes</em> (keys only; values redacted except game fields)</span></label>
+        <div class="muted" id="icStatus" data-ft="debug-status" style="font-size:12px"></div>
         <div class="row"><span class="muted" id="debugCount"></span><button id="btnDebugExport">Export debug shapes</button><button id="btnDebugClear" class="link">Clear shapes</button></div>
         <label class="inline"><input type="checkbox" id="sDom"> Experimental DOM fallback (result only, when network capture finds nothing)</label>
         <label class="inline">New session after <input type="number" id="sGap" min="1" max="1440" style="width:80px"> minutes idle</label>
         <label class="inline">Loss warning when tracker-session SC net reaches −<input type="number" id="sWarn" min="0.01" step="0.01" style="width:90px"> SC ($)</label>
-        <div class="row"><button class="danger" id="btnClear">Clear all flip data…</button></div>
+        <div class="row"><button class="danger" id="btnReset">Reset stats…</button><button class="danger" id="btnClear">Clear all flip data…</button></div>
         <p class="muted" style="font-size:12px;margin:0">Read-only: Flip Tracker only observes your own Flip results on stake.us. It never places bets, clicks, or automates play, and it never reads cookies, tokens or headers. Data stays in this browser (storage.local).</p>
       </div>
     </section>

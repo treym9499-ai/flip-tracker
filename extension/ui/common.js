@@ -76,7 +76,7 @@
   function send(msg) {
     return ext.runtime.sendMessage(msg).then((r) => { if (!r || !r.ok) throw new Error((r && r.error) || 'no response'); return r.result; });
   }
-  function load() { return ext.storage.local.get(['flips', 'settings', 'debugShapes', 'lastCaptureAt']); }
+  function load() { return ext.storage.local.get(['flips', 'settings', 'debugShapes', 'lastCaptureAt', 'interceptorStatus']); }
   function toast(msg) {
     let t = document.querySelector('.toast'); if (!t) { t = h('div', { class: 'toast' }); document.body.appendChild(t); }
     t.textContent = msg; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2500);

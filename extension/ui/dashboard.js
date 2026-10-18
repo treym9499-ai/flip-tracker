@@ -25,11 +25,14 @@
 
     const cs = Object.entries(s.currencies);
     const st = s.streaks;
+    const g = s.games;
     $('cards').replaceChildren(
-      card('Flips', String(s.flips), s.bets + ' rounds' + (s.openBets ? ' · ' + s.openBets + ' open' : '')),
-      card('Wins', String(s.wins), null, 'pos'),
-      card('Losses', String(s.losses), s.unknown ? s.unknown + ' unknown' : null, 'neg'),
-      card('Win rate', pct(s.winRate), 'of decided flips'),
+      card('Games played', String(g.played), g.open ? g.open + ' still open' : 'Play \u2192 lose or cash out', null),
+      card('Games won', String(g.won), 'cashed out', 'pos'),
+      card('Games lost', String(g.lost), null, 'neg'),
+      card('Game win rate', pct(g.winRate), 'of finished games'),
+      card('Flips', String(s.flips), s.wins + ' W / ' + s.losses + ' L' + (s.unknown ? ' · ' + s.unknown + ' ?' : '')),
+      card('Flip win rate', pct(s.winRate), 'of decided flips'),
       card('Current streak', st.current.length ? st.current.length + ' ' + (st.current.type === 'win' ? 'W' : 'L') : '—', null, st.current.type === 'win' ? 'pos' : st.current.type === 'loss' ? 'neg' : ''),
       card('Longest win streak', String(st.longestWin), null, 'pos'),
       card('Longest loss streak', String(st.longestLoss), null, 'neg'),
@@ -37,7 +40,7 @@
     );
 
     $('curTable').replaceChildren(cs.length ? h('table', {},
-      h('thead', {}, h('tr', {}, ['Currency', 'Rounds', 'Wagered', 'Paid out', 'Net', 'ROI'].map((t) => h('th', { text: t })))),
+      h('thead', {}, h('tr', {}, ['Currency', 'Games', 'Wagered', 'Paid out', 'Net', 'ROI'].map((t) => h('th', { text: t })))),
       h('tbody', {}, cs.map(([c, v]) => h('tr', {}, h('td', { text: c }), h('td', { text: v.bets + (v.bets - v.settled ? ' (' + (v.bets - v.settled) + ' open)' : '') }),
         h('td', { text: fmtAmt(v.wagered, c) }), h('td', { text: fmtAmt(v.payout, c) }),
         h('td', { class: cls(v.net), text: fmtSigned(v.net, c) }), h('td', { class: cls(v.roi), text: pct(v.roi) })))))
@@ -47,12 +50,17 @@
       h('div', { class: 'muted', text: 'Your picks', style: 'margin-bottom:4px' }), UI.splitBar(s.picks.heads, s.picks.tails),
       h('div', { class: 'muted', text: 'Results', style: 'margin:12px 0 4px' }), UI.splitBar(s.results.heads, s.results.tails));
 
+    $('last25').setAttribute('data-seq', FlipStats.sequence(s.last25));
+    $('last25').replaceChildren(...(s.last25.length ? s.last25.flatMap((f, i) => {
+      const x = h('span', { class: 'seq-' + (f.result === 'heads' ? 'H' : 'T'), title: (f.result === 'heads' ? 'Heads' : 'Tails') + ' · ' + fmtTime(f.ts), text: f.result === 'heads' ? 'H' : 'T' });
+      return i ? [h('span', { class: 'muted', text: ',' }), x] : [x];
+    }) : [h('span', { class: 'muted', text: 'No flips yet' })]));
     const chartCurs = Object.keys(s.series);
     $('charts').replaceChildren(...(chartCurs.length ? chartCurs.map((c) => h('div', { style: 'margin-bottom:10px' },
       h('div', { class: 'muted', text: c }), UI.lineChart(s.series[c], c))) : [UI.lineChart([], '')]));
 
     $('sessions').replaceChildren(h('table', {},
-      h('thead', {}, h('tr', {}, ['#', 'Start', 'Duration', 'Flips', 'W / L', 'Rounds', 'Net'].map((t) => h('th', { text: t })))),
+      h('thead', {}, h('tr', {}, ['#', 'Start', 'Duration', 'Flips', 'Flip W / L', 'Games', 'Net'].map((t) => h('th', { text: t })))),
       h('tbody', {}, s.sessions.slice().reverse().map((x) => h('tr', {},
         h('td', { text: String(x.no) }), h('td', { text: fmtTime(x.start) }),
         h('td', { text: Math.max(1, Math.round((x.end - x.start) / 60000)) + ' min' }),
@@ -63,7 +71,7 @@
     const rows = s.rows.slice().reverse();
     const shown = lim ? rows.slice(0, lim) : rows;
     $('flips').replaceChildren(h('table', { id: 'flipTable' },
-      h('thead', {}, h('tr', {}, ['Time', 'Session', 'Round', 'Flip', 'Pick', 'Result', 'Outcome', 'Bet', 'Mult.', 'Payout', 'Source', ''].map((t) => h('th', { text: t })))),
+      h('thead', {}, h('tr', {}, ['Time', 'Session', 'Game', 'Flip #', 'Pick', 'Result', 'Outcome', 'Bet', 'Mult.', 'Payout', 'Source', ''].map((t) => h('th', { text: t })))),
       h('tbody', {}, shown.map((r) => h('tr', {},
         h('td', { text: fmtTime(r.ts) }), h('td', { text: String(r.session) }), h('td', { text: String(r.round) }), h('td', { text: String(r.flipIndex) }),
         h('td', {}, sideEl(r.pick)), h('td', {}, sideEl(r.result)), h('td', {}, outcomeEl(r.win)),
@@ -77,12 +85,22 @@
     $('sDom').checked = !!state.settings.domFallback;
     if (document.activeElement !== $('sWarn')) $('sWarn').value = state.settings.lossWarnSC || 10;
     if (document.activeElement !== $('sGap')) $('sGap').value = state.settings.sessionGapMin || 30;
+    renderIc();
     $('debugCount').textContent = (state.debugShapes || []).length + ' debug shapes saved';
   }
 
+  function renderIc() {
+      const now = Date.now();
+      const fr = state.ic && state.ic.frames ? Object.values(state.ic.frames).filter((f) => now - f.at < 2 * 60000) : [];
+      const sum = (k) => fr.reduce((a, f) => a + (f[k] || 0), 0);
+      $('icStatus').textContent = 'Interceptor active in ' + fr.length + ' frame' + (fr.length === 1 ? '' : 's') + ' \u00b7 ' + sum('seen') + ' responses seen \u00b7 ' + sum('flipLike') + ' flip-like' +
+        (fr.length ? '' : ' (open stake.us in a tab to start it)');
+  }
+  setInterval(renderIc, 15000);
+
   async function refresh() {
     const r = await UI.load();
-    state = { flips: r.flips || [], settings: Object.assign({ debug: false, domFallback: false, sessionGapMin: 30, lossWarnSC: 10 }, r.settings || {}), debugShapes: r.debugShapes || [], lastCaptureAt: r.lastCaptureAt };
+    state = { flips: r.flips || [], settings: Object.assign({ debug: false, domFallback: false, sessionGapMin: 30, lossWarnSC: 10 }, r.settings || {}), debugShapes: r.debugShapes || [], lastCaptureAt: r.lastCaptureAt, ic: r.interceptorStatus || null };
     render();
   }
   async function del(id) { await UI.send({ type: 'deleteFlip', id }); }
@@ -110,6 +128,10 @@
       const r = await UI.send({ type: 'importFlips', flips: flips.slice(0, 200000) });
       UI.toast('Imported: ' + r.added + ' new, ' + r.updated + ' updated');
     } catch (err) { UI.toast('Import failed: ' + err.message); }
+  });
+  $('btnReset').addEventListener('click', async () => {
+    if (!confirm('Reset stats? This deletes all ' + state.flips.length + ' recorded flips (games, P/L, streaks) and starts a fresh tracker session. Export JSON first if you want a backup.')) return;
+    await UI.send({ type: 'resetStats' }); UI.toast('Stats reset');
   });
   $('btnClear').addEventListener('click', async () => {
     if (!confirm('Delete ALL ' + state.flips.length + ' stored flips? Export a JSON backup first if you want to keep them. This cannot be undone.')) return;
@@ -139,6 +161,11 @@
     catch (err) { UI.toast('Could not add: ' + err.message); }
   });
 
-  ext.storage.onChanged.addListener((ch, area) => { if (area === 'local') refresh(); });
+  ext.storage.onChanged.addListener((ch, area) => {
+    if (area !== 'local') return;
+    const keys = Object.keys(ch);
+    if (keys.length === 1 && keys[0] === 'interceptorStatus') { state.ic = ch.interceptorStatus.newValue || null; renderIc(); return; }
+    refresh();
+  });
   refresh();
 })();

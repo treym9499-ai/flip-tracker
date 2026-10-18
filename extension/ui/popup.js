@@ -8,6 +8,7 @@
   setTimeout(() => { $('intro').classList.add('hidden'); $('main').classList.remove('hidden'); }, 5000);
   let tracker = { active: false };
   $('tracker').addEventListener('click', () => UI.send({ type: 'setTracker', active: !tracker.active }));
+  $('resetPos').addEventListener('click', () => ext.storage.local.set({ overlayState: { v: 2, x: null, y: null, collapsed: false } }).then(() => UI.toast('Overlay docked top-right')));
   $('overlayToggle').addEventListener('change', (e) => UI.send({ type: 'setSettings', settings: { overlay: e.target.checked } }));
   $('open').addEventListener('click', () => {
     if (ext.runtime.openOptionsPage) ext.runtime.openOptionsPage().catch(() => ext.tabs.create({ url: ext.runtime.getURL('ui/dashboard.html') }));
@@ -27,10 +28,11 @@
     const s = FlipStats.computeStats(r.flips || [], { sessionGapMin: settings.sessionGapMin || 30 });
     const st = s.streaks;
     $('cards').replaceChildren(
-      card('Flips', String(s.flips), s.wins + 'W / ' + s.losses + 'L'),
-      card('Win rate', pct(s.winRate)),
+      card('Games played', String(s.games.played), s.games.won + ' won / ' + s.games.lost + ' lost'),
+      card('Flips', String(s.flips), s.wins + 'W / ' + s.losses + 'L · ' + pct(s.winRate)),
       card('Streak', st.current.length ? st.current.length + (st.current.type === 'win' ? ' W' : ' L') : '—', 'best W ' + st.longestWin + ' · L ' + st.longestLoss),
       ...Object.entries(s.currencies).map(([c, v]) => card('Net ' + c, fmtSigned(v.net, c), 'ROI ' + pct(v.roi), cls(v.net))));
+    $('seq').textContent = s.last25.length ? FlipStats.sequence(s.last25) : '—';
     const last = s.rows.slice(-6).reverse();
     $('recent').replaceChildren(last.length ? h('table', {}, h('tbody', {}, last.map((x) => h('tr', {},
       h('td', {}, sideEl(x.pick)), h('td', {}, sideEl(x.result)), h('td', {}, outcomeEl(x.win)), h('td', { text: fmtAmt(x.amount, x.currency) })))))

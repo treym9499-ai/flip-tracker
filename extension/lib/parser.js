@@ -32,6 +32,8 @@
       if (!b || typeof b !== 'object') continue;
       const vars = b.variables && typeof b.variables === 'object' ? b.variables : b; // REST bodies are flat
       out.push({
+        isMutation: (typeof b.query === 'string' && /^\s*mutation\b/.test(b.query)) ||
+          (typeof b.operationName === 'string' && /^flip(bet|next|cashout|autobet|play)$/i.test(b.operationName)),
         operationName: typeof b.operationName === 'string' ? b.operationName : null,
         guess: M.normSide(M.pick(vars, M.REQUEST_VARS.guess)),
         amount: M.num(M.pick(vars, M.REQUEST_VARS.amount)),
@@ -51,18 +53,24 @@
        M.pick(o, M.BET.active) !== undefined);
   }
 
-  /* Walk the JSON and collect objects that are Flip bets. */
-  function findBets(data, restAction) {
+  /* Walk the JSON and collect Flip bets that are the USER'S OWN results.
+     - never descends into arrays (public feeds / history lists are arrays of bets)
+     - never descends into PUBLIC_FEED_KEYS
+     - a bet must sit under an OPERATION_KEY, or the request must be a GraphQL mutation,
+       or the URL must be a REST /_api/casino/flip/<action> endpoint. */
+  function findBets(data, restAction, isMutation) {
     const found = [];
     const seen = new Set();
     function add(obj, opKey) { if (!seen.has(obj)) { seen.add(obj); found.push({ bet: obj, opKey }); } }
     function walk(node, key, depth) {
-      if (!node || typeof node !== 'object' || depth > 12) return;
-      if (Array.isArray(node)) { node.forEach((n) => walk(n, key, depth + 1)); return; }
+      if (!node || typeof node !== 'object' || depth > 8 || Array.isArray(node)) return;
+      if (key && M.PUBLIC_FEED_KEYS.includes(key)) return;
       if (key && M.OPERATION_KEYS.includes(key) && looksLikeBet(node)) { add(node, key); return; }
-      const st = M.pick(node, M.BET.state);
-      if (st && typeof st === 'object' && matchesAny(st.__typename, M.STATE_TYPENAMES)) { add(node, key); return; }
-      if (matchesAny(node.game, M.GAME_NAMES) && looksLikeBet(node)) { add(node, key); return; }
+      if (isMutation || restAction) {
+        const st = M.pick(node, M.BET.state);
+        if (st && typeof st === 'object' && matchesAny(st.__typename, M.STATE_TYPENAMES)) { add(node, key); return; }
+        if (matchesAny(node.game, M.GAME_NAMES) && looksLikeBet(node)) { add(node, key); return; }
+      }
       for (const k of Object.keys(node)) walk(node[k], k, depth + 1);
     }
     walk(data, null, 0);
@@ -80,6 +88,7 @@
   /* Turn one bet object into per-flip records + a bet-level update. */
   function parseBet(bet, opKey, req, ctx) {
     const betId = M.pick(bet, M.BET.id);
+    if (betId === undefined || betId === null || betId === '') return { flips: [], update: null }; // can't dedupe -> don't record
     const amount = M.num(M.pick(bet, M.BET.amount)) ?? (req && req.amount) ?? null;
     const currency = M.normCurrency(M.pick(bet, M.BET.currency)) || (req && req.currency) || null;
     const activeRaw = M.pick(bet, M.BET.active);
@@ -164,7 +173,8 @@
     const out = { flips: [], betUpdates: [], related: false };
     responses.forEach((resp, idx) => {
       const req = reqs[idx] || reqs[0] || null;
-      for (const { bet, opKey } of findBets(resp, restM && restM[1])) {
+      if (input.transport === 'ws') return; // WebSocket = subscriptions/public feeds: never create flips
+      for (const { bet, opKey } of findBets(resp, restM && restM[1], !!(req && req.isMutation))) {
         const r = parseBet(bet, opKey, req, { now, source });
         out.flips.push(...r.flips);
         if (r.update) out.betUpdates.push(r.update);

@@ -63,3 +63,5 @@ body.popup .card .v{font-size:18px}
 .codes-panel .cd-item{border-color:#2f4553}
 .codes-panel .cd-code{color:#39FF14;font-family:ui-monospace,Menlo,Consolas,monospace}
 .codes-panel .cd-act a{color:var(--blue)}
+.seq{font:800 16px/1.7 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;word-break:break-all}
+.seq-H{color:var(--blue)} .seq-T{color:var(--orange)}

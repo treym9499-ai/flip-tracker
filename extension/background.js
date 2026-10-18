@@ -4,7 +4,7 @@ try { importScripts('lib/browser-shim.js', 'lib/records.js', 'lib/stats.js', 'li
 
 const DEFAULT_SETTINGS = { debug: false, domFallback: false, sessionGapMin: 30, overlay: false, lossWarnSC: 10 };
 const DEFAULT_TRACKER = { active: false, sessionId: null, startedAt: null, stoppedAt: null, warnArmed: true, warning: null };
-const MAX_DEBUG = 100;
+const MAX_DEBUG = 200;
 let chain = Promise.resolve();
 function serial(fn) { const p = chain.then(fn); chain = p.catch(() => {}); return p; }
 
@@ -29,7 +29,10 @@ const handlers = {
     if (!s.debug) return { stored: false };
     const r = await get('debugShapes');
     const list = Array.isArray(r.debugShapes) ? r.debugShapes : [];
-    list.push(msg.shape);
+    const shape = msg.shape || {};
+    const ex = shape.sig ? list.find((x) => x.sig === shape.sig) : null;
+    if (ex) { ex.count = (ex.count || 1) + 1; ex.lastAt = shape.at; if (shape.parsed && shape.parsed.flipLike) Object.assign(ex, shape, { count: ex.count }); }
+    else list.push(Object.assign({ count: 1 }, shape));
     await ext.storage.local.set({ debugShapes: list.slice(-MAX_DEBUG) });
     return { stored: true };
   },
@@ -50,6 +53,13 @@ const handlers = {
     await ext.storage.local.set({ flips });
     return { total: flips.length };
   },
+  async resetStats() {
+    const t = await getTracker();
+    const nt = t.active ? Object.assign({}, DEFAULT_TRACKER, { active: true, sessionId: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), startedAt: Date.now() })
+      : Object.assign({}, DEFAULT_TRACKER);
+    await ext.storage.local.set({ flips: [], lastCaptureAt: null, tracker: nt });
+    return { ok: true };
+  },
   async clearAll() { await ext.storage.local.set({ flips: [] }); return { ok: true }; },
   async clearDebug() { await ext.storage.local.set({ debugShapes: [] }); return { ok: true }; },
   async setSettings(msg) {
@@ -61,6 +71,18 @@ const handlers = {
     return s;
   },
   async getSettings() { return getSettings(); },
+  async interceptorStatus(msg, sender) {
+    if (!sender.tab || !msg.frame) return null;
+    const r = await get('interceptorStatus');
+    const st = r.interceptorStatus && r.interceptorStatus.frames ? r.interceptorStatus : { frames: {} };
+    const now = Date.now();
+    const f = msg.frame;
+    st.frames[String(f.id).slice(0, 20)] = { at: now, tab: sender.tab.id, top: !!f.top, path: String(f.path || '').slice(0, 120),
+      seen: Number(f.seen) || 0, gameLike: Number(f.gameLike) || 0, flipLike: Number(f.flipLike) || 0 };
+    for (const k of Object.keys(st.frames)) if (now - st.frames[k].at > 10 * 60000) delete st.frames[k];
+    await ext.storage.local.set({ interceptorStatus: st });
+    return true;
+  },
   async setTracker(msg) {
     let t = await getTracker();
     if (msg.active && !t.active) {
@@ -178,6 +200,14 @@ async function ensureAlarm() {
 if (ext.alarms) {
   ext.alarms.onAlarm.addListener((a) => { if (a.name === FlipCodesConfig.ALARM_NAME) serial(() => refreshCodes('alarm')); });
 }
-ext.runtime.onInstalled.addListener(() => { ensureAlarm(); });
+ext.runtime.onInstalled.addListener((d) => {
+  ensureAlarm();
+  if (d && d.reason === 'update') serial(async () => {
+    // 1.0.1 migration: drop records 1.0.0 could create from feeds/DOM without a real bet id.
+    const flips = await getFlips();
+    const keep = flips.filter((f) => f.source === 'manual' || f.source === 'import' || (f.betId && !/^nb:|^dom:/.test(f.id)));
+    if (keep.length !== flips.length) await ext.storage.local.set({ flips: keep, migratedRemoved: flips.length - keep.length });
+  });
+});
 ext.runtime.onStartup && ext.runtime.onStartup.addListener(() => { ensureAlarm(); });
 ensureAlarm();

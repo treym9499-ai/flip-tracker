@@ -29,7 +29,8 @@
 
     /* ---- Which network traffic is even considered ---------------------- */
     // URL must match one of these to be inspected at all (page-world filter).
-    API_URL_PATTERNS: [/\/_api\/graphql/i, /\/_api\/casino\/flip/i, /\/_api\/casino\//i],
+    // Informational only: capture does NOT depend on the path (any JSON on stake.us is considered).
+    API_URL_PATTERNS: [/\/_api\/graphql/i, /\/_api\/casino\//i, /graphql/i, /websockets?/i],
     // Fast pre-filter on the raw text before JSON parsing.
     TEXT_HINT: /flip/i,
 
@@ -39,6 +40,15 @@
     OPERATION_KEYS: [
       'flipBet', 'flipNext', 'flipCashout', 'flipAutoBet', 'flipAutobet',
       'flipActiveBet', 'flipPlay', 'flipFlip', 'flip'
+    ],
+    // ONLY the user's own bet results are recorded: a Flip bet must come from one of the
+    // OPERATION_KEYS above (the player's own mutation results), or from a REST
+    // /_api/casino/flip/<action> response, or from a GraphQL *mutation* request.
+    // Bets found inside arrays or under these public/history feed keys are NEVER recorded.
+    PUBLIC_FEED_KEYS: [
+      'houseBets', 'highrollerBets', 'highRollerBets', 'allBets', 'latestBets', 'recentBets', 'liveBets',
+      'bets', 'betList', 'casinoBetList', 'userBets', 'myBets', 'betHistory', 'sportBetList', 'leaderboard',
+      'race', 'raceBets', 'bigWins', 'luckyWins', 'topWins', 'notifications', 'chat', 'chatMessages'
     ],
     // `state.__typename` values identifying Flip game state.
     STATE_TYPENAMES: [/^CasinoGameFlip$/i, /flip/i],
@@ -102,7 +112,8 @@
       '__typename', 'operationName', 'game', 'active', 'currency',
       'amount', 'payout', 'payoutMultiplier', 'amountMultiplier', 'multiplier',
       'guess', 'pick', 'choice', 'result', 'outcome', 'flip', 'coin', 'side',
-      'value', 'win', 'isWin', 'won', 'type', 'kind', 'updatedAt', 'createdAt'
+      'value', 'win', 'isWin', 'won', 'type', 'kind', 'updatedAt', 'createdAt',
+      'state', 'rounds', 'guess', 'guesses', 'results', 'flips', 'selected', 'prediction', 'isActive', 'betAmount'
     ],
 
     /* ---- DOM fallback (experimental, OFF by default) -------------------- */

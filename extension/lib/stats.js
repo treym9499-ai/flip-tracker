@@ -47,7 +47,8 @@
       flips: flips.length, wins: 0, losses: 0, unknown: 0, winRate: null,
       picks: { heads: 0, tails: 0 }, results: { heads: 0, tails: 0 },
       streaks: { current: { type: null, length: 0 }, longestWin: 0, longestLoss: 0 },
-      currencies: {}, series: {}, sessions: [], rows: [], openBets: 0, bets: 0
+      currencies: {}, series: {}, sessions: [], rows: [], openBets: 0, bets: 0,
+      games: { played: 0, won: 0, lost: 0, open: 0, winRate: null }, last25: []
     };
     let run = 0, runType = null;
     for (const f of flips) {
@@ -64,6 +65,17 @@
 
     const bets = groupBets(flips);
     s.bets = bets.length;
+    // GAME = Play pressed .. lost or cashed out (one bet id). Won = cashed out (payout > 0).
+    for (const b of bets) {
+      if (b.flips[0].source === 'dom' && !b.amount) continue;
+      s.games.played++;
+      if (!b.settled) s.games.open++;
+      else if ((b.payout || 0) > 0) s.games.won++;
+      else s.games.lost++;
+    }
+    if (s.games.won + s.games.lost) s.games.winRate = s.games.won / (s.games.won + s.games.lost);
+    // Last 25 individual flip OUTCOMES, chronological (oldest -> newest).
+    s.last25 = flips.filter((f) => f.result).slice(-25).map((f) => ({ result: f.result, pick: f.pick, win: f.win, ts: f.ts, flipIndex: f.flipIndex, betId: f.betId }));
     const betOf = new Map();
     for (const b of bets) {
       for (const f of b.flips) betOf.set(f.id, b);
@@ -106,8 +118,8 @@
     return s;
   }
 
-  const CSV_COLS = ['timestamp_iso', 'session', 'round_in_session', 'flip_in_round', 'bet_id', 'pick', 'result',
-    'outcome', 'bet_amount', 'currency', 'multiplier', 'payout', 'wager_counted', 'round_net', 'source'];
+  const CSV_COLS = ['timestamp_iso', 'session', 'game_in_session', 'flip_in_game', 'game_id', 'pick', 'result',
+    'outcome', 'bet_amount', 'currency', 'multiplier', 'payout', 'wager_counted', 'game_net', 'source'];
   function csvCell(v) {
     if (v === null || v === undefined) return '';
     let s = String(v);
@@ -124,5 +136,6 @@
     return lines.join('\r\n') + '\r\n';
   }
 
-  return { computeStats, groupBets, filterFlips, toCSV, CSV_COLS };
+  function sequence(last) { return last.map((f) => (f.result === 'heads' ? 'H' : 'T')).join(','); }
+  return { computeStats, groupBets, filterFlips, toCSV, CSV_COLS, sequence };
 });
